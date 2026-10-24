@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manga Library - OtakuVault</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <!-- Mobile Overlay -->
+  <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <a href="{{ url_for('index') }}" class="logo-wrapper">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">OtakuVault</div>
+    </a>
+
+    <div class="nav-section-title">Navigation</div>
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a href="{{ url_for('index') }}">
+          <span class="nav-icon">📺</span>
+          <span>Anime Library</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('manga') }}" class="active">
+          <span class="nav-icon">📖</span>
+          <span>Manga Library</span>
+          <span class="nav-badge">{{ stats['total'] }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('favorites') }}">
+          <span class="nav-icon">⭐</span>
+          <span>Favorites</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('suggestions') }}">
+          <span class="nav-icon">💡</span>
+          <span>Suggestions</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('chat') }}">
+          <span class="nav-icon">🤖</span>
+          <span>AI Sensei</span>
+        </a>
+      </li>
+    </ul>
+
+    <!-- Sidebar Footer / User Info -->
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-avatar">{{ (username or 'O')[0]|upper }}</div>
+        <div class="user-name" title="{{ username }}">{{ username }}</div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="btn-logout" title="Log Out">
+        <span>Logout</span> ⇥
+      </a>
+    </div>
+  </aside>
+
+  <!-- Mobile Topbar -->
+  <div class="mobile-topbar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button class="hamburger-btn" onclick="toggleMobileSidebar()" aria-label="Toggle menu">☰</button>
+      <div class="logo-text" style="font-size: 1.15rem;">OtakuVault</div>
+    </div>
+    <button class="btn btn-sm" onclick="openAddModal()">+ Add</button>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- Page Header -->
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1><span>📖</span> Manga Collection</h1>
+        <p>Track your reading progress, chapter milestones, and rated manga.</p>
+      </div>
+      <button class="btn" onclick="openAddModal()">
+        <span>+ Add Manga</span>
+      </button>
+    </header>
+
+    <!-- Library Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-icon">📚</div>
+        <div>
+          <div class="stat-val">{{ stats['total'] }}</div>
+          <div class="stat-lbl">Total Manga</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">📑</div>
+        <div>
+          <div class="stat-val">{{ stats['chapters'] }}</div>
+          <div class="stat-lbl">Chapters Read</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon gold">⭐</div>
+        <div>
+          <div class="stat-val">{{ stats['mean_score'] }}<span style="font-size: 0.9rem; color: var(--text-muted);">/10</span></div>
+          <div class="stat-lbl">Mean Rating</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">🏆</div>
+        <div>
+          <div class="stat-val">{{ stats['completed'] }}</div>
+          <div class="stat-lbl">Completed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls Bar: Status Filter Pills + Real-Time Search + Sort -->
+    <div class="controls-bar">
+      <div class="filters-pills">
+        <a href="{{ url_for('manga', status='all') }}" class="filter-pill {{ 'active' if current_filter == 'all' else '' }}">
+          <span>All</span>
+          <span class="pill-count">{{ stats['counts']['all'] }}</span>
+        </a>
+        <a href="{{ url_for('manga', status='Reading') }}" class="filter-pill {{ 'active' if current_filter == 'Reading' else '' }}">
+          <span>Reading</span>
+          <span class="pill-count">{{ stats['counts']['Reading'] }}</span>
+        </a>
+        <a href="{{ url_for('manga', status='Completed') }}" class="filter-pill {{ 'active' if current_filter == 'Completed' else '' }}">
+          <span>Completed</span>
+          <span class="pill-count">{{ stats['counts']['Completed'] }}</span>
+        </a>
+        <a href="{{ url_for('manga', status='Plan to Read') }}" class="filter-pill {{ 'active' if current_filter == 'Plan to Read' else '' }}">
+          <span>Plan to Read</span>
+          <span class="pill-count">{{ stats['counts']['Plan to Read'] }}</span>
+        </a>
+        <a href="{{ url_for('manga', status='On Hold') }}" class="filter-pill {{ 'active' if current_filter == 'On Hold' else '' }}">
+          <span>On Hold</span>
+          <span class="pill-count">{{ stats['counts']['On Hold'] }}</span>
+        </a>
+        <a href="{{ url_for('manga', status='Dropped') }}" class="filter-pill {{ 'active' if current_filter == 'Dropped' else '' }}">
+          <span>Dropped</span>
+          <span class="pill-count">{{ stats['counts']['Dropped'] }}</span>
+        </a>
+      </div>
+
+      <div class="search-sort-group">
+        <div class="search-input-box">
+          <span class="search-input-icon">🔍</span>
+          <input type="text" id="librarySearchInput" placeholder="Filter manga in library..." autocomplete="off">
+        </div>
+        <select id="librarySortSelect" class="sort-select" title="Sort manga collection">
+          <option value="recent">Recently Added</option>
+          <option value="title">Title (A - Z)</option>
+          <option value="score">Highest Score</option>
+          <option value="progress">Most Chapters</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Manga Media Grid -->
+    <div class="media-grid">
+      {% for item in entries %}
+      {% set progress_pct = (item['progress'] / item['total'] * 100)|round if item['total'] and item['total'] > 0 else (100 if item['status'] == 'Completed' else 0) %}
+      {% set status_class = 'status-reading' if item['status'] == 'Reading' else ('status-completed' if item['status'] == 'Completed' else ('status-plan' if item['status'] == 'Plan to Read' else ('status-hold' if item['status'] == 'On Hold' else 'status-dropped'))) %}
+      
+      <div class="media-card" 
+           data-id="{{ item['id'] }}" 
+           data-title="{{ item['title'] }}" 
+           data-score="{{ item['score'] or 0 }}" 
+           data-progress="{{ item['progress'] or 0 }}"
+           data-total="{{ item['total'] or 0 }}"
+           data-status="{{ item['status'] }}">
+        
+        <!-- Poster Art Container -->
+        <div class="poster-wrap" onclick="openCardDetails(this, 'manga')" style="cursor: pointer;" title="Click to view details & info">
+          <img 
+            src="{{ item['image_url'] or 'https://placehold.co/240x320/171b26/ffffff?text=' + item['title'] }}" 
+            alt="{{ item['title'] }}" 
+            class="card-cover"
+            loading="lazy">
+          
+          <div class="poster-gradient"></div>
+
+          <!-- Badges on Poster -->
+          <div class="card-badges-top">
+            <span class="badge-status {{ status_class }}">{{ item['status'] }}</span>
+            {% if item['score'] and item['score'] > 0 %}
+            <span class="badge-score">★ {{ item['score'] }}</span>
+            {% endif %}
+          </div>
+
+          <!-- Floating Star Favorite -->
+          <button 
+            type="button"
+            class="fav-btn {{ 'active' if item['is_favorite'] == 1 else '' }}" 
+            data-id="{{ item['id'] }}" 
+            onclick="event.stopPropagation(); toggleFavorite(this);" 
+            title="Toggle Favorite">
+            ★
+          </button>
+
+          <!-- Bottom Title Overlay -->
+          <div class="poster-bottom-title">
+            <div class="poster-title" title="{{ item['title'] }}">{{ item['title'] }}</div>
+          </div>
+        </div>
+
+        <!-- Card Content Body -->
+        <div class="card-content">
+          <!-- Progress Bar & Count -->
+          <div class="progress-container">
+            <div class="progress-header">
+              <span>Chapters</span>
+              <span class="progress-counter">
+                <span class="progress-current">{{ item['progress'] }}</span> / {{ item['total'] if item['total'] > 0 else '?' }}
+              </span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: {{ progress_pct }}%;"></div>
+            </div>
+          </div>
+
+          <!-- Action Controls -->
+          <div class="card-actions">
+            <button 
+              type="button" 
+              class="btn-increment" 
+              onclick="handleIncrement(this, 'manga')"
+              title="Quick +1 Chapter">
+              <span>+1 Ch</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="btn-card-info" 
+              onclick="openCardDetails(this, 'manga')"
+              title="Where to Read & AniList Details">
+              ℹ️
+            </button>
+
+            <button 
+              type="button" 
+              class="btn-card-edit" 
+              onclick="openCardEdit(this)"
+              title="Edit Details">
+              ✎
+            </button>
+
+            <form action="{{ url_for('delete_entry', entry_id=item['id']) }}" method="POST" onsubmit="return confirm('Remove this series from your library?');" style="margin: 0;">
+              <button type="submit" class="btn-card-del" title="Delete">✕</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📖</div>
+        <h3>No manga found in this filter</h3>
+        <p>Start tracking your favorite manga series by clicking "+ Add Manga" above!</p>
+        <button class="btn" onclick="openAddModal()">+ Add Your First Manga</button>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <!-- Add Manga Modal -->
+  <div class="modal-backdrop" id="addModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2><span>⚡</span> Add Manga to Vault</h2>
+        <button type="button" class="btn-close-modal" onclick="closeAddModal()">✕</button>
+      </div>
+      <form action="{{ url_for('add_entry') }}" method="POST" autocomplete="off">
+        <input type="hidden" name="medium" value="manga">
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="seriesTitleInput">Manga Title (Live AniList Search)</label>
+            <input type="text" id="seriesTitleInput" name="title" placeholder="Search manga title (e.g. Berserk, One Piece)..." required>
+            <div class="autocomplete-dropdown" id="suggestionsBox"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="seriesStatusSelect">Reading Status</label>
+            <select id="seriesStatusSelect" name="status">
+              <option value="Reading">Reading</option>
+              <option value="Completed">Completed</option>
+              <option value="Plan to Read">Plan to Read</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Dropped">Dropped</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="seriesProgressInput">Chapters Read</label>
+              <input type="number" id="seriesProgressInput" name="progress" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label for="seriesTotalInput">Total Chapters</label>
+              <input type="number" id="seriesTotalInput" name="total" min="0" value="0" placeholder="0 if ongoing">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="seriesScoreInput">Your Rating (0 - 10)</label>
+            <input type="number" id="seriesScoreInput" name="score" min="0" max="10" value="0">
+          </div>
+
+          <div class="form-group">
+            <label for="seriesImageInput">Cover Image URL</label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <input type="url" id="seriesImageInput" name="image_url" placeholder="Auto-fills from search..." style="flex: 1;">
+              <img id="seriesImagePreview" src="" alt="Preview" style="display: none; width: 36px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border);">
+            </div>
+          </div>
+
+          <button type="submit" class="btn" style="width: 100%; margin-top: 6px;">
+            Save to Vault
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quick Edit Modal -->
+  <div class="modal-backdrop" id="editEntryModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2><span>✎</span> Edit Entry: <span id="editEntryTitle" style="color: var(--primary); font-size: 1.1rem; margin-left: 6px;"></span></h2>
+        <button type="button" class="btn-close-modal" onclick="closeEditModal()">✕</button>
+      </div>
+      <form id="editForm" method="POST">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="editStatusSelect">Status</label>
+            <select id="editStatusSelect" name="status">
+              <option value="Reading">Reading</option>
+              <option value="Completed">Completed</option>
+              <option value="Plan to Read">Plan to Read</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Dropped">Dropped</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editProgressInput">Chapters Read</label>
+              <input type="number" id="editProgressInput" name="progress" min="0" required>
+            </div>
+            <div class="form-group">
+              <label for="editTotalInput">Total Chapters</label>
+              <input type="number" id="editTotalInput" name="total" min="0">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editScoreInput">Your Rating (0 - 10)</label>
+            <input type="number" id="editScoreInput" name="score" min="0" max="10">
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 6px;">
+            <button type="button" class="btn btn-secondary" onclick="closeEditModal()" style="flex: 1;">Cancel</button>
+            <button type="submit" class="btn" style="flex: 2;">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initAddModalAutocomplete('manga');
+    });
+  </script>
+</body>
+</html>

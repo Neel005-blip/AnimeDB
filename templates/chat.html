@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Sensei - OtakuVault</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body style="height: 100vh; overflow: hidden;">
+
+  <!-- Mobile Overlay -->
+  <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <a href="{{ url_for('index') }}" class="logo-wrapper">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">OtakuVault</div>
+    </a>
+
+    <div class="nav-section-title">Navigation</div>
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a href="{{ url_for('index') }}">
+          <span class="nav-icon">📺</span>
+          <span>Anime Library</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('manga') }}">
+          <span class="nav-icon">📖</span>
+          <span>Manga Library</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('favorites') }}">
+          <span class="nav-icon">⭐</span>
+          <span>Favorites</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('suggestions') }}">
+          <span class="nav-icon">💡</span>
+          <span>Suggestions</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('chat') }}" class="active">
+          <span class="nav-icon">🤖</span>
+          <span>AI Sensei</span>
+        </a>
+      </li>
+    </ul>
+
+    <!-- Sidebar Footer / User Info -->
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-avatar">{{ (username or 'O')[0]|upper }}</div>
+        <div class="user-name" title="{{ username }}">{{ username }}</div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="btn-logout" title="Log Out">
+        <span>Logout</span> ⇥
+      </a>
+    </div>
+  </aside>
+
+  <!-- Chat Viewport -->
+  <div class="chat-viewport">
+    
+    <!-- Central Chat Frame -->
+    <div class="chat-container">
+      
+      <!-- Chat Header -->
+      <header style="background: var(--bg-sidebar); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="hamburger-btn" onclick="toggleMobileSidebar()" style="display: none;" id="mobileChatMenu">☰</button>
+          <div>
+            <h1 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+              <span>🤖</span> OtakuSensei AI
+            </h1>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Personalized recommendations powered by Gemini</p>
+          </div>
+        </div>
+
+        <button class="btn btn-secondary btn-sm" onclick="clearChat()">Clear Chat</button>
+      </header>
+
+      <!-- Messages Area -->
+      <div class="chat-messages-box" id="chatMessages">
+        
+        <!-- Welcome Message -->
+        <div class="chat-msg-row">
+          <div class="chat-avatar bot">🤖</div>
+          <div class="chat-bubble">
+            Konnichiwa! I'm <strong>OtakuSensei</strong>, your personalized anime and manga guide. 
+            I have context of your rated series and favorites from your vault. Ask me for tailored recommendations, watch order guides, or hidden gems!
+            
+            <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-dim); font-weight: 700;">Try asking:</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="sendQuickPrompt(this)">Recommend anime similar to Cyberpunk: Edgerunners</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="sendQuickPrompt(this)">What manga should I read if I love Solo Leveling?</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="sendQuickPrompt(this)">Top psychological thrillers with high ratings</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Input Bar -->
+      <form id="chatForm" onsubmit="handleChatSubmit(event)" class="chat-input-bar">
+        <input 
+          type="text" 
+          id="chatInput" 
+          placeholder="Ask OtakuSensei anything about anime or manga..." 
+          autocomplete="off">
+        <button type="submit" class="btn" id="sendBtn">
+          <span>Send</span> ➔
+        </button>
+      </form>
+
+    </div>
+
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script>
+    // Show mobile hamburger button if screen is small
+    function checkMobileChat() {
+      const btn = document.getElementById('mobileChatMenu');
+      if (btn) {
+        btn.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
+      }
+    }
+    window.addEventListener('resize', checkMobileChat);
+    checkMobileChat();
+
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function sendQuickPrompt(btn) {
+      chatInput.value = btn.textContent.trim();
+      handleChatSubmit(new Event('submit'));
+    }
+
+    function clearChat() {
+      chatMessages.innerHTML = `
+        <div class="chat-msg-row">
+          <div class="chat-avatar bot">🤖</div>
+          <div class="chat-bubble">
+            Chat cleared! What would you like to explore next?
+          </div>
+        </div>
+      `;
+    }
+
+    async function handleChatSubmit(e) {
+      if (e) e.preventDefault();
+      const message = chatInput.value.trim();
+      if (!message) return;
+
+      // Append user bubble
+      appendMessage(message, 'user');
+      chatInput.value = '';
+      chatInput.disabled = true;
+      sendBtn.disabled = true;
+
+      // Append loading indicator
+      const loadingRow = document.createElement('div');
+      loadingRow.className = 'chat-msg-row';
+      loadingRow.id = 'loadingBubble';
+      loadingRow.innerHTML = `
+        <div class="chat-avatar bot">🤖</div>
+        <div class="chat-bubble" style="color: var(--text-muted); font-style: italic;">
+          Sensei is thinking...
+        </div>
+      `;
+      chatMessages.appendChild(loadingRow);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      try {
+        const response = await fetch('/api/ai_chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message })
+        });
+        const data = await response.json();
+
+        // Remove loading
+        const loader = document.getElementById('loadingBubble');
+        if (loader) loader.remove();
+
+        const botReply = data.response || "I couldn't fetch an answer right now. Please try again.";
+        appendMessage(botReply, 'bot');
+      } catch (err) {
+        console.error("Chat error:", err);
+        const loader = document.getElementById('loadingBubble');
+        if (loader) loader.remove();
+        appendMessage("Network error connecting to AI assistant.", 'bot');
+      } finally {
+        chatInput.disabled = false;
+        sendBtn.disabled = false;
+        chatInput.focus();
+      }
+    }
+
+    function appendMessage(text, sender) {
+      const row = document.createElement('div');
+      row.className = `chat-msg-row ${sender}`;
+
+      const avatarHtml = sender === 'user' 
+        ? `<div class="chat-avatar user-avatar-chat">👤</div>`
+        : `<div class="chat-avatar bot">🤖</div>`;
+
+      row.innerHTML = `
+        ${avatarHtml}
+        <div class="chat-bubble">${escapeHtml(text)}</div>
+      `;
+
+      chatMessages.appendChild(row);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discovery & Suggestions - OtakuVault</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <!-- Mobile Overlay -->
+  <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <a href="{{ url_for('index') }}" class="logo-wrapper">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">OtakuVault</div>
+    </a>
+
+    <div class="nav-section-title">Navigation</div>
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a href="{{ url_for('index') }}">
+          <span class="nav-icon">📺</span>
+          <span>Anime Library</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('manga') }}">
+          <span class="nav-icon">📖</span>
+          <span>Manga Library</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('favorites') }}">
+          <span class="nav-icon">⭐</span>
+          <span>Favorites</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('suggestions') }}" class="active">
+          <span class="nav-icon">💡</span>
+          <span>Suggestions</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('chat') }}">
+          <span class="nav-icon">🤖</span>
+          <span>AI Sensei</span>
+        </a>
+      </li>
+    </ul>
+
+    <!-- Sidebar Footer / User Info -->
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-avatar">{{ (username or 'O')[0]|upper }}</div>
+        <div class="user-name" title="{{ username }}">{{ username }}</div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="btn-logout" title="Log Out">
+        <span>Logout</span> ⇥
+      </a>
+    </div>
+  </aside>
+
+  <!-- Mobile Topbar -->
+  <div class="mobile-topbar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button class="hamburger-btn" onclick="toggleMobileSidebar()" aria-label="Toggle menu">☰</button>
+      <div class="logo-text" style="font-size: 1.15rem;">OtakuVault</div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- Page Header -->
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1><span>💡</span> Explore & Discover</h1>
+        <p>Find trending anime and popular manga worldwide, and import directly to your vault.</p>
+      </div>
+    </header>
+
+    <!-- Discovery Search Controls -->
+    <div class="discovery-search-wrap">
+      <div class="discovery-input-box">
+        <span class="search-input-icon">🔍</span>
+        <input 
+          type="text" 
+          id="discoverySearchInput" 
+          class="discovery-input" 
+          placeholder="Search by series name (e.g., Jujutsu Kaisen, Frieren, Chainsaw Man)..."
+          autocomplete="off">
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <select id="discoveryMedium" class="sort-select" style="padding: 12px 16px; font-size: 0.95rem;">
+          <option value="anime">Anime</option>
+          <option value="manga">Manga</option>
+        </select>
+
+        <button class="btn" onclick="executeDiscoverySearch()">
+          <span>Search</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Section Title & Results Count -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 id="discoveryHeading" style="font-family: var(--font-display); font-size: 1.4rem;">
+        🔥 Trending Right Now
+      </h2>
+    </div>
+
+    <!-- Results Grid -->
+    <div id="discoveryGrid" class="media-grid">
+      <div class="empty-state">
+        <div class="empty-icon">⏳</div>
+        <h3>Loading recommendations...</h3>
+        <p>Connecting to AniList to discover top media.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script>
+    const searchInput = document.getElementById('discoverySearchInput');
+    const mediumSelect = document.getElementById('discoveryMedium');
+    const discoveryGrid = document.getElementById('discoveryGrid');
+    const discoveryHeading = document.getElementById('discoveryHeading');
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        executeDiscoverySearch();
+      }
+    });
+
+    mediumSelect.addEventListener('change', () => {
+      executeDiscoverySearch();
+    });
+
+    async function executeDiscoverySearch() {
+      const query = searchInput.value.trim();
+      const medium = mediumSelect.value;
+
+      discoveryGrid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⏳</div>
+          <h3>Fetching ${medium.toUpperCase()}...</h3>
+          <p>Finding the highest rated titles from AniList.</p>
+        </div>
+      `;
+
+      discoveryHeading.textContent = query ? `Search Results for "${query}"` : `🔥 Trending ${medium.toUpperCase()}`;
+
+      try {
+        const response = await fetch(`/api/discover?medium=${medium}&q=${encodeURIComponent(query)}`);
+        const items = await response.json();
+        renderDiscoveryResults(items, medium);
+      } catch (err) {
+        console.error("Discovery error:", err);
+        discoveryGrid.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon" style="color: #ef4444;">✕</div>
+            <h3>Failed to load suggestions</h3>
+            <p>Please check your connection and try again.</p>
+            <button class="btn" onclick="executeDiscoverySearch()">Retry</button>
+          </div>
+        `;
+      }
+    }
+
+    function renderDiscoveryResults(items, medium) {
+      discoveryGrid.innerHTML = '';
+
+      if (!items || items.length === 0) {
+        discoveryGrid.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <h3>No titles found</h3>
+            <p>Try searching with another name or genre keyword.</p>
+          </div>
+        `;
+        return;
+      }
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'media-card';
+        card.dataset.title = item.title;
+
+        const totalLabel = medium === 'manga' ? 'Chapters' : 'Episodes';
+        const totalCount = item.total ? item.total : '?';
+        const genreTags = item.genres ? item.genres.map(g => `<span class="genre-tag">${g}</span>`).join('') : '';
+
+        card.innerHTML = `
+          <div class="poster-wrap" style="height: 270px; cursor: pointer;" onclick="openCardDetails(this, '${medium}')" title="Click for details & streaming sources">
+            <img 
+              src="${item.cover || 'https://placehold.co/240x320/171b26/ffffff?text=' + encodeURIComponent(item.title)}" 
+              alt="${item.title}" 
+              class="card-cover"
+              loading="lazy">
+            <div class="poster-gradient"></div>
+
+            <div class="card-badges-top">
+              <span class="badge-status status-watching">${medium.toUpperCase()}</span>
+              ${item.score > 0 ? `<span class="badge-score">★ ${item.score}</span>` : ''}
+            </div>
+
+            <div class="poster-bottom-title">
+              <div class="poster-title" title="${item.title}">${item.title}</div>
+            </div>
+          </div>
+
+          <div class="card-content">
+            <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">
+              ${totalLabel}: <strong style="color: var(--text-main);">${totalCount}</strong>
+            </div>
+
+            <div class="discovery-genres">${genreTags}</div>
+            <div class="synopsis-text">${item.description || 'No synopsis available.'}</div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openCardDetails(this, '${medium}')" style="width: 100%;">
+                📺 Where to Watch & Details
+              </button>
+
+              <form action="/add_entry" method="POST" style="margin: 0;">
+                <input type="hidden" name="title" value="${item.title}">
+                <input type="hidden" name="medium" value="${medium}">
+                <input type="hidden" name="status" value="${medium === 'manga' ? 'Reading' : 'Watching'}">
+                <input type="hidden" name="progress" value="0">
+                <input type="hidden" name="total" value="${item.total || 0}">
+                <input type="hidden" name="score" value="0">
+                <input type="hidden" name="image_url" value="${item.cover}">
+                <button type="submit" class="btn btn-sm" style="width: 100%;">
+                  + Add to Vault
+                </button>
+              </form>
+            </div>
+          </div>
+        `;
+
+        discoveryGrid.appendChild(card);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      executeDiscoverySearch();
+    });
+  </script>
+</body>
+</html>

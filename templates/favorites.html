@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Favorites - OtakuVault</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <!-- Mobile Overlay -->
+  <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <a href="{{ url_for('index') }}" class="logo-wrapper">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">OtakuVault</div>
+    </a>
+
+    <div class="nav-section-title">Navigation</div>
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a href="{{ url_for('index') }}">
+          <span class="nav-icon">📺</span>
+          <span>Anime Library</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('manga') }}">
+          <span class="nav-icon">📖</span>
+          <span>Manga Library</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('favorites') }}" class="active">
+          <span class="nav-icon">⭐</span>
+          <span>Favorites</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('suggestions') }}">
+          <span class="nav-icon">💡</span>
+          <span>Suggestions</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('chat') }}">
+          <span class="nav-icon">🤖</span>
+          <span>AI Sensei</span>
+        </a>
+      </li>
+    </ul>
+
+    <!-- Sidebar Footer / User Info -->
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-avatar">{{ (username or 'O')[0]|upper }}</div>
+        <div class="user-name" title="{{ username }}">{{ username }}</div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="btn-logout" title="Log Out">
+        <span>Logout</span> ⇥
+      </a>
+    </div>
+  </aside>
+
+  <!-- Mobile Topbar -->
+  <div class="mobile-topbar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button class="hamburger-btn" onclick="toggleMobileSidebar()" aria-label="Toggle menu">☰</button>
+      <div class="logo-text" style="font-size: 1.15rem;">OtakuVault</div>
+    </div>
+    <button class="btn btn-sm" onclick="openCharModal()">+ Character</button>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- Page Header -->
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1><span>⭐</span> Hall of Fame</h1>
+        <p>Your pinned all-time favorite anime, manga, and cherished characters.</p>
+      </div>
+      <button class="btn" onclick="openCharModal()">
+        <span>+ Add Favorite Character</span>
+      </button>
+    </header>
+
+    <!-- Section 1: Favorite Characters -->
+    <section style="margin-bottom: 48px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-family: var(--font-display); font-size: 1.45rem; display: flex; align-items: center; gap: 8px;">
+          <span>👑</span> Favorite Characters
+          <span class="pill-count" style="font-size: 0.8rem; background: rgba(255, 51, 102, 0.2); color: var(--primary);">{{ characters|length }}</span>
+        </h2>
+      </div>
+
+      <div class="media-grid">
+        {% for char in characters %}
+        <div class="char-card">
+          <div style="position: relative; width: 100%; height: 260px; overflow: hidden; background: #181c2a;">
+            <img 
+              src="{{ char['image_url'] or 'https://placehold.co/240x300/181c2a/ffffff?text=' + char['char_name'] }}" 
+              alt="{{ char['char_name'] }}" 
+              class="char-cover"
+              loading="lazy">
+            <div class="poster-gradient"></div>
+            {% if char['anime_origin'] %}
+            <div style="position: absolute; top: 10px; left: 10px; z-index: 2;">
+              <span class="badge-status status-watching">{{ char['anime_origin'] }}</span>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="char-body">
+            <div class="char-name">{{ char['char_name'] }}</div>
+            {% if char['notes'] %}
+            <div class="char-notes">"{{ char['notes'] }}"</div>
+            {% endif %}
+            
+            <form action="{{ url_for('delete_character', char_id=char['id']) }}" method="POST" onsubmit="return confirm('Remove {{ char['char_name'] }}?');" style="margin-top: auto; padding-top: 10px;">
+              <button type="submit" class="btn btn-danger btn-sm" style="width: 100%;">Remove</button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">👑</div>
+          <h3>No favorite characters added yet</h3>
+          <p>Add your top waifus, husbandos, and iconic anime heroes!</p>
+          <button class="btn" onclick="openCharModal()">+ Add Character</button>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Section 2: Starred Anime & Manga -->
+    <section>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-family: var(--font-display); font-size: 1.45rem; display: flex; align-items: center; gap: 8px;">
+          <span>★</span> Starred Series
+          <span class="pill-count" style="font-size: 0.8rem; background: rgba(251, 191, 36, 0.2); color: var(--star-gold);">{{ media|length }}</span>
+        </h2>
+      </div>
+
+      <div class="media-grid">
+        {% for item in media %}
+        <div class="media-card" data-title="{{ item['title']|e }}" data-medium="{{ item['medium']|lower }}">
+          <div class="poster-wrap" style="height: 280px; cursor: pointer;" onclick="openCardDetails(this, '{{ item['medium']|lower }}')" title="Click for streaming sources & details">
+            <img 
+              src="{{ item['image_url'] or 'https://placehold.co/240x320/171b26/ffffff?text=' + item['title'] }}" 
+              alt="{{ item['title'] }}" 
+              class="card-cover"
+              loading="lazy">
+            <div class="poster-gradient"></div>
+
+            <div class="card-badges-top">
+              <span class="badge-status status-completed">{{ item['medium']|upper }}</span>
+              {% if item['score'] and item['score'] > 0 %}
+              <span class="badge-score">★ {{ item['score'] }}</span>
+              {% endif %}
+            </div>
+
+            <button 
+              type="button"
+              class="fav-btn active" 
+              data-id="{{ item['id'] }}" 
+              onclick="event.stopPropagation(); toggleFavorite(this);" 
+              title="Remove from favorites">
+              ★
+            </button>
+
+            <div class="poster-bottom-title">
+              <div class="poster-title">{{ item['title'] }}</div>
+            </div>
+          </div>
+
+          <div class="card-content" style="padding: 12px 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">
+              <span>Status: <strong style="color: var(--text-main);">{{ item['status'] }}</strong></span>
+              <span>Progress: <strong style="color: var(--text-main);">{{ item['progress'] }}/{{ item['total'] if item['total'] > 0 else '?' }}</strong></span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openCardDetails(this, '{{ item['medium']|lower }}')" style="width: 100%;">
+              📺 Where to Watch & Details
+            </button>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">⭐</div>
+          <h3>No starred series yet</h3>
+          <p>Click the ★ star button on any anime or manga card in your libraries to showcase it here.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Add Character Modal -->
+  <div class="modal-backdrop" id="addCharModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2><span>👑</span> Add Favorite Character</h2>
+        <button type="button" class="btn-close-modal" onclick="closeCharModal()">✕</button>
+      </div>
+      <form action="{{ url_for('add_character') }}" method="POST" autocomplete="off">
+        <div class="modal-body">
+          <div class="form-group" style="position: relative; z-index: 50;">
+            <label for="charNameInput">Character Name (Live AniList Search)</label>
+            <input type="text" id="charNameInput" name="char_name" placeholder="Search character (e.g. Zoro, Gojo, Makima)..." required autocomplete="off">
+            <div class="autocomplete-dropdown" id="charSuggestionsBox"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="charOriginInput">Origin Anime / Manga</label>
+            <input type="text" id="charOriginInput" name="anime_origin" placeholder="e.g. One Piece, Jujutsu Kaisen, Chainsaw Man">
+          </div>
+
+          <div class="form-group">
+            <label for="charImageInput">Character Image URL</label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <input type="url" id="charImageInput" name="image_url" placeholder="https://..." style="flex: 1;">
+              <img id="charImagePreview" src="" alt="Preview" style="display: none; width: 36px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border);">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="charNotesInput">Notes / Memorable Quote</label>
+            <textarea id="charNotesInput" name="notes" rows="2" placeholder="e.g. 'Scars on the back are a swordsman\'s shame.'"></textarea>
+          </div>
+
+          <button type="submit" class="btn" style="width: 100%; margin-top: 6px;">
+            Add to Hall of Fame
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}?v=3"></script>
+  <script>
+    function openCharModal() {
+      const modal = document.getElementById('addCharModal');
+      if (modal) {
+        modal.classList.add('active');
+        const input = document.getElementById('charNameInput');
+        if (input) input.focus();
+      }
+    }
+
+    function closeCharModal() {
+      const modal = document.getElementById('addCharModal');
+      if (modal) modal.classList.remove('active');
+      const box = document.getElementById('charSuggestionsBox');
+      if (box) box.style.display = 'none';
+    }
+
+    // Live image preview
+    const charImgInput = document.getElementById('charImageInput');
+    const charImgPrev = document.getElementById('charImagePreview');
+    if (charImgInput && charImgPrev) {
+      charImgInput.addEventListener('input', () => {
+        const url = charImgInput.value.trim();
+        if (url) {
+          charImgPrev.src = url;
+          charImgPrev.style.display = 'block';
+        } else {
+          charImgPrev.style.display = 'none';
+        }
+      });
+    }
+
+    // --- Dual-Fetch Character Autocomplete & Auto-Fill ---
+    async function fetchAniListCharacters(query) {
+      // 1. Try internal backend route
+      try {
+        const res = await fetch(`/api/search_character?q=${encodeURIComponent(query)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
+      } catch (e) {
+        console.warn("Backend character API unreachable, falling back to direct AniList:", e);
+      }
+
+      // 2. Direct client-side AniList GraphQL fallback (public CORS enabled)
+      try {
+        const gql = `
+          query ($search: String) {
+            Page(page: 1, perPage: 8) {
+              characters(search: $search, sort: SEARCH_MATCH) {
+                id
+                name { full userPreferred }
+                image { large medium }
+                media(sort: POPULARITY_DESC, perPage: 1) {
+                  nodes {
+                    title { english romaji }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        const resp = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ query: gql, variables: { search: query } })
+        });
+        if (resp.ok) {
+          const json = await resp.json();
+          const list = json.data?.Page?.characters || [];
+          return list.map(c => {
+            const name = c.name?.userPreferred || c.name?.full || '';
+            const img = c.image?.large || c.image?.medium || '';
+            const nodes = c.media?.nodes || [];
+            const origin = nodes.length > 0 ? (nodes[0].title?.english || nodes[0].title?.romaji || '') : '';
+            return { name, image: img, origin };
+          });
+        }
+      } catch (err) {
+        console.error("Direct AniList query failed:", err);
+      }
+
+      return [];
+    }
+
+    function setupCharacterSearch() {
+      const nameInput = document.getElementById('charNameInput');
+      const box = document.getElementById('charSuggestionsBox');
+      const originInput = document.getElementById('charOriginInput');
+      const imgInput = document.getElementById('charImageInput');
+      const imgPrev = document.getElementById('charImagePreview');
+
+      if (!nameInput || !box) return;
+
+      let timer = null;
+
+      nameInput.addEventListener('input', () => {
+        clearTimeout(timer);
+        const query = nameInput.value.trim();
+
+        if (query.length < 2) {
+          box.innerHTML = '';
+          box.style.display = 'none';
+          return;
+        }
+
+        // Show immediate loading indicator
+        box.innerHTML = `
+          <div style="padding: 12px 14px; color: var(--text-muted); font-size: 0.85rem; display: flex; align-items: center; gap: 8px;">
+            <span>⚡</span> Searching AniList for "${query}"...
+          </div>
+        `;
+        box.style.display = 'block';
+
+        timer = setTimeout(async () => {
+          const items = await fetchAniListCharacters(query);
+
+          box.innerHTML = '';
+          if (!items || items.length === 0) {
+            box.innerHTML = `
+              <div style="padding: 12px 14px; font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+                No characters found matching "${query}"
+              </div>
+            `;
+            box.style.display = 'block';
+            return;
+          }
+
+          items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'autocomplete-item';
+            row.innerHTML = `
+              <img src="${item.image || 'https://placehold.co/40x55/1b1f2e/ffffff?text=?'}" class="autocomplete-thumb" alt="">
+              <div class="autocomplete-details">
+                <div class="autocomplete-title">${item.name}</div>
+                <div class="autocomplete-meta">${item.origin || 'Anime / Manga Character'}</div>
+              </div>
+            `;
+
+            row.addEventListener('click', () => {
+              nameInput.value = item.name;
+              if (originInput && item.origin) {
+                originInput.value = item.origin;
+              }
+              if (imgInput && item.image) {
+                imgInput.value = item.image;
+              }
+              if (imgPrev && item.image) {
+                imgPrev.src = item.image;
+                imgPrev.style.display = 'block';
+              }
+              box.style.display = 'none';
+            });
+
+            box.appendChild(row);
+          });
+
+          box.style.display = 'block';
+        }, 250);
+      });
+
+      // Dismiss dropdown on outside click
+      document.addEventListener('click', (e) => {
+        if (!nameInput.contains(e.target) && !box.contains(e.target)) {
+          box.style.display = 'none';
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setupCharacterSearch();
+    });
+  </script>
+</body>
+</html>
